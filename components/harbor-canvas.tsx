@@ -587,31 +587,35 @@ export function HarborCanvas({
       // Check if this was a tap (short duration, minimal movement, not during pan/zoom)
       if (touchDuration < 300 && !touchMoved && !isZooming && currentUserRole !== "viewer") {
         // Handle tap selection - only for boats
-        const rect = canvasRef.current?.getBoundingClientRect()
-        if (!rect) {
-          console.log("No canvas rect available")
+        // Get the container rect, not the canvas rect (canvas is transformed)
+        const containerRect = canvasRef.current?.parentElement?.getBoundingClientRect()
+        if (!containerRect) {
+          console.log("No container rect available")
           return
         }
 
-        // Use the END position of the touch, not the start position
+        // Use the END position of the touch
         const touchX = e.changedTouches[0].clientX
         const touchY = e.changedTouches[0].clientY
 
-        // Convert screen coordinates to canvas coordinates
-        const canvasX = touchX - rect.left
-        const canvasY = touchY - rect.top
+        // Convert screen coordinates to container coordinates
+        const containerX = touchX - containerRect.left
+        const containerY = touchY - containerRect.top
 
         // Apply inverse transform to get world coordinates
-        // The key is to properly reverse the transform: translate first, then scale
-        const worldX = (canvasX - translateX) / scale
-        const worldY = (canvasY - translateY) / scale
+        // Since the canvas has transform: translate(translateX, translateY) scale(scale)
+        // We need to reverse this: first undo translation, then undo scaling
+        const worldX = (containerX - translateX) / scale
+        const worldY = (containerY - translateY) / scale
 
-        console.log(`🎯 Touch Selection Debug (Fixed):`)
+        console.log(`🎯 Touch Selection Debug (Container-based):`)
         console.log(`  Touch end position: (${touchX}, ${touchY})`)
-        console.log(`  Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}`)
-        console.log(`  Canvas relative: (${canvasX}, ${canvasY})`)
         console.log(
-          `  Current transform: translateX=${translateX.toFixed(1)}, translateY=${translateY.toFixed(1)}, scale=${scale.toFixed(3)}`,
+          `  Container rect: left=${containerRect.left}, top=${containerRect.top}, width=${containerRect.width}, height=${containerRect.height}`,
+        )
+        console.log(`  Container relative: (${containerX}, ${containerY})`)
+        console.log(
+          `  Transform: translateX=${translateX.toFixed(1)}, translateY=${translateY.toFixed(1)}, scale=${scale.toFixed(3)}`,
         )
         console.log(`  World coordinates: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
 
