@@ -61,6 +61,10 @@ export function HarborCanvas({
   const [initialScale, setInitialScale] = useState(1)
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
 
+  // Touch selection state
+  const [touchStartTime, setTouchStartTime] = useState(0)
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 })
+
   // Helper function to calculate distance between two touch points
   const getTouchDistance = (touch1: React.Touch, touch2: React.Touch) => {
     const dx = touch1.clientX - touch2.clientX
@@ -500,11 +504,14 @@ export function HarborCanvas({
     e.preventDefault()
 
     if (e.touches.length === 1) {
-      // Single touch for panning
+      // Single touch for panning and potential selection
+      const touch = e.touches[0]
+      setTouchStartTime(Date.now())
+      setTouchStartPos({ x: touch.clientX, y: touch.clientY })
       setIsPanning(true)
       setStartPos({
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
+        x: touch.clientX,
+        y: touch.clientY,
       })
     } else if (e.touches.length === 2) {
       // Two touches for zooming
@@ -568,10 +575,65 @@ export function HarborCanvas({
 
     if (e.touches.length === 0) {
       // All touches ended
+      const touchDuration = Date.now() - touchStartTime
+      const touchMoved =
+        Math.abs(e.changedTouches[0].clientX - touchStartPos.x) > 10 ||
+        Math.abs(e.changedTouches[0].clientY - touchStartPos.y) > 10
+
+      // Check if this was a tap (short duration, no movement)
+      if (touchDuration < 300 && !touchMoved && !isPanning && !isZooming && currentUserRole !== "viewer") {
+        // Handle tap selection - only for boats
+        const rect = canvasRef.current?.getBoundingClientRect()
+        if (!rect) return
+
+        const touchX = e.changedTouches[0].clientX
+        const touchY = e.changedTouches[0].clientY
+        const worldX = (touchX - rect.left - translateX) / scale
+        const worldY = (touchY - rect.top - translateY) / scale
+
+        // Check boats only (highest priority for touch)
+        let foundBoat = false
+        for (const boat of state.boats) {
+          if (worldX >= boat.x && worldX <= boat.x + boat.width && worldY >= boat.y && worldY <= boat.y + boat.height) {
+            // Check if user can edit this boat
+            if (canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
+              updateState({
+                selectedBoat: boat,
+                selectedPier: null,
+                selectedSlot: null,
+                selectedZone: null,
+              })
+              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
+            } else {
+              // Show access denied message
+              const boatZone = findBoatZone(boat, state.zones)
+              alert(
+                `🔒 Geen toegang tot deze boot!\n\nBoot "${boat.name}" staat in zone "${boatZone?.name || "Onbekende zone"}" waar je geen toegang toe hebt.`,
+              )
+            }
+            foundBoat = true
+            break
+          }
+        }
+
+        // If no boat was touched, deselect all
+        if (!foundBoat) {
+          updateState({
+            selectedBoat: null,
+            selectedPier: null,
+            selectedSlot: null,
+            selectedZone: null,
+          })
+          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd (zoom: ${scale.toFixed(2)}x)`)
+        }
+      }
+
       setIsPanning(false)
       setIsZooming(false)
       setInitialDistance(0)
       setInitialScale(1)
+      setTouchStartTime(0)
+      setTouchStartPos({ x: 0, y: 0 })
     } else if (e.touches.length === 1 && isZooming) {
       // Went from 2 touches to 1 touch - switch back to panning
       setIsZooming(false)
@@ -761,7 +823,12 @@ export function HarborCanvas({
         cursor: "s-resize",
       },
       { handle: "sw", x: actualX - handleSize / 2, y: actualY + actualHeight - handleSize / 2, cursor: "sw-resize" },
-      { handle: "w", x: actualX - handleSize / 2, y: actualY + actualHeight / 2 - handleSize / 2, cursor: "w-resize" },
+      {
+        handle: "w",
+        x: actualX - handleSize / 2,
+        y: actualY + actualHeight / 2 - handleSize / 2,
+        cursor: "w-resize",
+      },
     ]
 
     return handles.map(({ handle, x: hx, y: hy, cursor }) => (
