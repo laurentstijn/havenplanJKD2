@@ -6,14 +6,7 @@ export function FirebaseSetupGuide() {
   const [isOpen, setIsOpen] = useState(false)
 
   if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors z-50 animate-pulse"
-      >
-        🚨 FIREBASE SETUP VEREIST
-      </button>
-    )
+    return null
   }
 
   return (

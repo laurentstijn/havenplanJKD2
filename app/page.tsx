@@ -196,7 +196,7 @@ function AppContent() {
   const currentUserZones = user?.uid ? getUserZones(user.uid, state.zones) : []
 
   return (
-    <div className="min-h-screen bg-blue-50 text-gray-800">
+    <div className="text-gray-600 bg-white px-3 py-2 rounded-lg shadow-sm text-xs">
       <AuthContainer currentUserRole={currentUserRole} onRoleChange={setCurrentUserRole} />
 
       {/* Demo data warning */}

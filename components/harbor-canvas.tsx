@@ -318,7 +318,8 @@ export function HarborCanvas({
   ])
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1) {
+    if (e.button === 2) {
+      // Changed from e.button === 1 (middle) to e.button === 2 (right)
       setIsPanning(true)
       setStartPos({
         x: e.clientX,
@@ -468,6 +469,36 @@ export function HarborCanvas({
     setScale(newScale)
     setTranslateX(newTranslateX)
     setTranslateY(newTranslateY)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // Single touch for panning
+      e.preventDefault()
+      setIsPanning(true)
+      setStartPos({
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isPanning && e.touches.length === 1) {
+      e.preventDefault()
+      const deltaX = e.touches[0].clientX - startPos.x
+      const deltaY = e.touches[0].clientY - startPos.y
+      setTranslateX(translateX + deltaX)
+      setTranslateY(translateY + deltaY)
+      setStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isPanning) {
+      e.preventDefault()
+      setIsPanning(false)
+    }
   }
 
   const startDragging = (
@@ -675,7 +706,7 @@ export function HarborCanvas({
         ref={canvasRef}
         className={`absolute top-0 left-0 w-[5000px] h-[5000px] ${
           isPanning ? "cursor-grabbing" : isDragging ? "cursor-grabbing" : "cursor-grab"
-        }`}
+        } touch-none`}
         style={{
           backgroundImage: gridVisible
             ? "linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)"
@@ -687,6 +718,10 @@ export function HarborCanvas({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
+        onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Render zones (onderste laag) - alleen als zonesVisible true is */}
         {zonesVisible &&

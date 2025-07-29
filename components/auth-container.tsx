@@ -89,8 +89,8 @@ export function AuthContainer({ currentUserRole, onRoleChange }: AuthContainerPr
             >
               🔐 Inloggen
             </button>
-            <div className="text-sm text-gray-600 bg-white px-3 py-2 rounded-lg shadow-sm">
-              💡 Iedereen kan kijken, inloggen voor bewerken
+            <div className="text-gray-600 bg-white px-3 py-2 rounded-lg shadow-sm">
+              💡 Iedereen kan kijken, inloggen voor bewerken of registreer jezelf
             </div>
           </div>
         )}
