@@ -640,56 +640,28 @@ export function HarborCanvas({
         // Handle tap selection using proper coordinate transformation
         const element = findElementAtScreenPosition(touchStartPos.x, touchStartPos.y)
 
-        if (element) {
-          if (element.type === "boat") {
-            const boat = element.element as any
+        if (element && element.type === "boat") {
+          // Only handle boat selection via touch
+          const boat = element.element as any
 
-            // Check if harbor master can access this boat
-            if (currentUserRole === "admin" || canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
-              updateState({
-                selectedBoat: boat,
-                selectedPier: null,
-                selectedSlot: null,
-                selectedZone: null,
-              })
-              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
-            } else {
-              // Show access denied message
-              const boatZone = findBoatZone(boat, state.zones)
-              alert(
-                `🔒 Geen toegang tot deze boot!\n\nBoot "${boat.name}" staat in zone "${boatZone?.name || "Onbekende zone"}" waar je geen toegang toe hebt.`,
-              )
-            }
-          } else if (element.type === "pier" && currentUserRole === "admin") {
-            const pier = element.element as any
+          // Check if harbor master can access this boat
+          if (currentUserRole === "admin" || canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
             updateState({
-              selectedPier: pier,
-              selectedBoat: null,
+              selectedBoat: boat,
+              selectedPier: null,
               selectedSlot: null,
               selectedZone: null,
             })
-            console.log(`🏗️ Steiger "${pier.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
-          } else if (element.type === "slot" && currentUserRole === "admin") {
-            const slot = element.element as any
-            updateState({
-              selectedSlot: slot,
-              selectedBoat: null,
-              selectedPier: null,
-              selectedZone: null,
-            })
-            console.log(`⚓ Ligplaats "${slot.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
-          } else if (element.type === "zone" && currentUserRole === "admin") {
-            const zone = element.element as any
-            updateState({
-              selectedZone: zone,
-              selectedBoat: null,
-              selectedPier: null,
-              selectedSlot: null,
-            })
-            console.log(`🏢 Zone "${zone.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
+            console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
+          } else {
+            // Show access denied message
+            const boatZone = findBoatZone(boat, state.zones)
+            alert(
+              `🔒 Geen toegang tot deze boot!\n\nBoot "${boat.name}" staat in zone "${boatZone?.name || "Onbekende zone"}" waar je geen toegang toe hebt.`,
+            )
           }
         } else {
-          // Tapped on empty space - deselect all
+          // Tapped on empty space or non-boat element - deselect all
           updateState({
             selectedBoat: null,
             selectedPier: null,
