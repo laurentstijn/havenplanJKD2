@@ -577,11 +577,15 @@ export function HarborCanvas({
       // All touches ended
       const touchDuration = Date.now() - touchStartTime
       const touchMoved =
-        Math.abs(e.changedTouches[0].clientX - touchStartPos.x) > 10 ||
-        Math.abs(e.changedTouches[0].clientY - touchStartPos.y) > 10
+        Math.abs(e.changedTouches[0].clientX - touchStartPos.x) > 15 ||
+        Math.abs(e.changedTouches[0].clientY - touchStartPos.y) > 15
 
-      // Check if this was a tap (short duration, no movement)
-      if (touchDuration < 300 && !touchMoved && !isPanning && !isZooming && currentUserRole !== "viewer") {
+      console.log(
+        `Touch ended - Duration: ${touchDuration}ms, Moved: ${touchMoved}, Panning: ${isPanning}, Zooming: ${isZooming}`,
+      )
+
+      // Check if this was a tap (short duration, minimal movement, not during pan/zoom)
+      if (touchDuration < 500 && !touchMoved && !isZooming && currentUserRole !== "viewer") {
         // Handle tap selection - only for boats
         const rect = canvasRef.current?.getBoundingClientRect()
         if (!rect) return
@@ -591,10 +595,14 @@ export function HarborCanvas({
         const worldX = (touchX - rect.left - translateX) / scale
         const worldY = (touchY - rect.top - translateY) / scale
 
+        console.log(`Touch tap detected at world coordinates: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
+
         // Check boats only (highest priority for touch)
         let foundBoat = false
         for (const boat of state.boats) {
           if (worldX >= boat.x && worldX <= boat.x + boat.width && worldY >= boat.y && worldY <= boat.y + boat.height) {
+            console.log(`Found boat: ${boat.name} at (${boat.x}, ${boat.y}) size (${boat.width}x${boat.height})`)
+
             // Check if user can edit this boat
             if (canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
               updateState({
@@ -603,10 +611,11 @@ export function HarborCanvas({
                 selectedSlot: null,
                 selectedZone: null,
               })
-              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
+              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch`)
             } else {
               // Show access denied message
               const boatZone = findBoatZone(boat, state.zones)
+              console.log(`🔒 Geen toegang tot boot "${boat.name}" in zone "${boatZone?.name}"`)
               alert(
                 `🔒 Geen toegang tot deze boot!\n\nBoot "${boat.name}" staat in zone "${boatZone?.name || "Onbekende zone"}" waar je geen toegang toe hebt.`,
               )
@@ -624,7 +633,7 @@ export function HarborCanvas({
             selectedSlot: null,
             selectedZone: null,
           })
-          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd (zoom: ${scale.toFixed(2)}x)`)
+          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd`)
         }
       }
 
