@@ -437,7 +437,7 @@ export function ManagementPanel({
         {/* Boats Section */}
         <div className="p-2 flex flex-col flex-1">
           <Card className="flex flex-col flex-1">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 sticky top-0 bg-white z-10 border-b border-gray-100">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center">🚤 Boten ({visibleBoats.length})</span>
                 {currentUserRole === "admin" && (
@@ -456,7 +456,7 @@ export function ManagementPanel({
                 />
               </div>
             </CardHeader>
-            <CardContent className="p-2 flex flex-col flex-1">
+            <CardContent className="p-2 flex flex-col flex-1 overflow-hidden">
               <div className="space-y-1 flex-1 overflow-y-auto">
                 {filteredBoats.map((boat) => {
                   const boatZone = findBoatZone(boat, state.zones)

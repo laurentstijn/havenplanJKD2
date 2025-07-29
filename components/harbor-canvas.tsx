@@ -577,42 +577,41 @@ export function HarborCanvas({
       // All touches ended
       const touchDuration = Date.now() - touchStartTime
       const touchMoved =
-        Math.abs(e.changedTouches[0].clientX - touchStartPos.x) > 15 ||
-        Math.abs(e.changedTouches[0].clientY - touchStartPos.y) > 15
+        Math.abs(e.changedTouches[0].clientX - touchStartPos.x) > 10 ||
+        Math.abs(e.changedTouches[0].clientY - touchStartPos.y) > 10
 
       console.log(
         `Touch ended - Duration: ${touchDuration}ms, Moved: ${touchMoved}, Panning: ${isPanning}, Zooming: ${isZooming}, Scale: ${scale.toFixed(2)}`,
       )
 
       // Check if this was a tap (short duration, minimal movement, not during pan/zoom)
-      if (touchDuration < 500 && !touchMoved && !isZooming && currentUserRole !== "viewer") {
+      if (touchDuration < 300 && !touchMoved && !isZooming && currentUserRole !== "viewer") {
         // Handle tap selection - only for boats
-        // More robust coordinate calculation that works at all zoom levels
         const rect = canvasRef.current?.getBoundingClientRect()
         if (!rect) {
           console.log("No canvas rect available")
           return
         }
 
-        const touchX = e.changedTouches[0].clientX
-        const touchY = e.changedTouches[0].clientY
+        // Get the exact touch position from the original touch start
+        const touchX = touchStartPos.x
+        const touchY = touchStartPos.y
 
-        // Calculate world coordinates step by step for better accuracy
+        // Convert screen coordinates to canvas coordinates
         const canvasX = touchX - rect.left
         const canvasY = touchY - rect.top
 
         // Apply inverse transform to get world coordinates
+        // This is the key fix: we need to account for both translation and scale
         const worldX = (canvasX - translateX) / scale
         const worldY = (canvasY - translateY) / scale
 
-        console.log(`Touch coordinates at zoom ${scale.toFixed(2)}x:`)
-        console.log(`  Screen: (${touchX}, ${touchY})`)
-        console.log(`  Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}`)
-        console.log(`  Canvas relative: (${canvasX}, ${canvasY})`)
-        console.log(
-          `  Transform: translate(${translateX.toFixed(1)}, ${translateY.toFixed(1)}) scale(${scale.toFixed(2)})`,
-        )
-        console.log(`  World: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
+        console.log(`🎯 Touch Selection Debug:`)
+        console.log(`  Screen touch: (${touchX}, ${touchY})`)
+        console.log(`  Canvas rect: left=${rect.left}, top=${rect.top}`)
+        console.log(`  Canvas coords: (${canvasX}, ${canvasY})`)
+        console.log(`  Transform: translateX=${translateX}, translateY=${translateY}, scale=${scale}`)
+        console.log(`  World coords: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
 
         // Check boats only (highest priority for touch)
         let foundBoat = false
@@ -622,10 +621,12 @@ export function HarborCanvas({
           const boatTop = boat.y
           const boatBottom = boat.y + boat.height
 
-          console.log(`Checking boat "${boat.name}": bounds (${boatLeft}-${boatRight}, ${boatTop}-${boatBottom})`)
+          console.log(
+            `  Checking boat "${boat.name}": (${boatLeft.toFixed(1)}, ${boatTop.toFixed(1)}) to (${boatRight.toFixed(1)}, ${boatBottom.toFixed(1)})`,
+          )
 
           if (worldX >= boatLeft && worldX <= boatRight && worldY >= boatTop && worldY <= boatBottom) {
-            console.log(`✅ Hit detected on boat: ${boat.name}`)
+            console.log(`  ✅ Hit detected on boat: ${boat.name}`)
 
             // Check if user can edit this boat
             if (canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
@@ -896,6 +897,7 @@ export function HarborCanvas({
           backgroundSize: "20px 20px",
           transformOrigin: "0 0",
           backgroundColor: "#87CEEB",
+          borderRadius: "20px",
         }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
