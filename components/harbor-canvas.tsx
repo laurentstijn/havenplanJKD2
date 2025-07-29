@@ -44,17 +44,6 @@ export function HarborCanvas({
   const [isPanning, setIsPanning] = useState(false)
   const [startPos, setStartPos] = useState({ x: 0, y: 0 })
 
-  // Touch zoom state
-  const [isZooming, setIsZooming] = useState(false)
-  const [initialDistance, setInitialDistance] = useState(0)
-  const [initialScale, setInitialScale] = useState(1)
-  const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
-
-  // Touch selection state
-  const [touchStartTime, setTouchStartTime] = useState(0)
-  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 })
-  const [hasMoved, setHasMoved] = useState(false)
-
   // Dragging state
   const [isDragging, setIsDragging] = useState(false)
   const [dragTarget, setDragTarget] = useState<{
@@ -65,72 +54,6 @@ export function HarborCanvas({
   } | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [originalSize, setOriginalSize] = useState({ width: 0, height: 0, x: 0, y: 0 })
-
-  // Helper function to calculate distance between two touch points
-  const getTouchDistance = (touch1: React.Touch, touch2: React.Touch) => {
-    const dx = touch1.clientX - touch2.clientX
-    const dy = touch1.clientY - touch2.clientY
-    return Math.sqrt(dx * dx + dy * dy)
-  }
-
-  // Helper function to get center point between two touches
-  const getTouchCenter = (touch1: React.Touch, touch2: React.Touch) => {
-    return {
-      x: (touch1.clientX + touch2.clientX) / 2,
-      y: (touch1.clientY + touch2.clientY) / 2,
-    }
-  }
-
-  // Helper function to convert screen coordinates to world coordinates
-  const screenToWorld = (screenX: number, screenY: number) => {
-    const rect = canvasRef.current?.getBoundingClientRect()
-    if (!rect) return { x: 0, y: 0 }
-
-    const worldX = (screenX - rect.left - translateX) / scale
-    const worldY = (screenY - rect.top - translateY) / scale
-    return { x: worldX, y: worldY }
-  }
-
-  // Helper function to find element at world position
-  const findElementAtWorldPosition = (worldX: number, worldY: number) => {
-    // Check boats first (highest z-index)
-    for (const boat of state.boats) {
-      if (worldX >= boat.x && worldX <= boat.x + boat.width && worldY >= boat.y && worldY <= boat.y + boat.height) {
-        return { type: "boat", element: boat }
-      }
-    }
-
-    // Check slots
-    for (const slot of state.slots) {
-      if (worldX >= slot.x && worldX <= slot.x + slot.width && worldY >= slot.y && worldY <= slot.y + slot.height) {
-        return { type: "slot", element: slot }
-      }
-    }
-
-    // Check piers
-    for (const pier of state.piers) {
-      if (worldX >= pier.x && worldX <= pier.x + pier.width && worldY >= pier.y && worldY <= pier.y + pier.height) {
-        return { type: "pier", element: pier }
-      }
-    }
-
-    // Check zones
-    if (zonesVisible) {
-      for (const zone of state.zones) {
-        if (worldX >= zone.x && worldX <= zone.x + zone.width && worldY >= zone.y && worldY <= zone.y + zone.height) {
-          return { type: "zone", element: zone }
-        }
-      }
-    }
-
-    return null
-  }
-
-  // Helper function to find element at screen position (for touch)
-  const findElementAtScreenPosition = (screenX: number, screenY: number) => {
-    const { x: worldX, y: worldY } = screenToWorld(screenX, screenY)
-    return findElementAtWorldPosition(worldX, worldY)
-  }
 
   // Replace the updateTransform useCallback with direct style updates
   useEffect(() => {
@@ -549,142 +472,32 @@ export function HarborCanvas({
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault()
-
     if (e.touches.length === 1) {
-      // Single touch - could be tap or pan
-      const touch = e.touches[0]
-      setTouchStartTime(Date.now())
-      setTouchStartPos({ x: touch.clientX, y: touch.clientY })
-      setHasMoved(false)
-
-      setIsPanning(true)
-      setStartPos({
-        x: touch.clientX,
-        y: touch.clientY,
-      })
-    } else if (e.touches.length === 2) {
-      // Two touches for zooming
-      setIsPanning(false) // Stop panning if it was active
-      setIsZooming(true)
-
-      const touch1 = e.touches[0]
-      const touch2 = e.touches[1]
-
-      const distance = getTouchDistance(touch1, touch2)
-      const center = getTouchCenter(touch1, touch2)
-
-      setInitialDistance(distance)
-      setInitialScale(scale)
-      setZoomCenter(center)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault()
-
-    if (e.touches.length === 1 && isPanning && !isZooming) {
-      // Single touch panning
-      const touch = e.touches[0]
-      const deltaX = touch.clientX - startPos.x
-      const deltaY = touch.clientY - startPos.y
-
-      // Check if we've moved enough to consider this a pan gesture
-      const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-      if (moveDistance > 10) {
-        setHasMoved(true)
-      }
-
-      setTranslateX(translateX + deltaX)
-      setTranslateY(translateY + deltaY)
-      setStartPos({ x: touch.clientX, y: touch.clientY })
-    } else if (e.touches.length === 2 && isZooming) {
-      // Two touch zooming
-      const touch1 = e.touches[0]
-      const touch2 = e.touches[1]
-
-      const currentDistance = getTouchDistance(touch1, touch2)
-      const currentCenter = getTouchCenter(touch1, touch2)
-
-      // Calculate scale factor
-      const scaleFactor = currentDistance / initialDistance
-      const newScale = Math.max(0.1, Math.min(5, initialScale * scaleFactor))
-
-      // Get canvas rect for coordinate conversion
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (!rect) return
-
-      // Convert zoom center to world coordinates (before zoom)
-      const worldX = (zoomCenter.x - rect.left - translateX) / scale
-      const worldY = (zoomCenter.y - rect.top - translateY) / scale
-
-      // Calculate new translation to keep the zoom center point stable
-      const newTranslateX = zoomCenter.x - rect.left - worldX * newScale
-      const newTranslateY = zoomCenter.y - rect.top - worldY * newScale
-
-      setScale(newScale)
-      setTranslateX(newTranslateX)
-      setTranslateY(newTranslateY)
-    }
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault()
-
-    if (e.touches.length === 0) {
-      // All touches ended
-      const touchDuration = Date.now() - touchStartTime
-
-      // Check if this was a tap (short duration, no movement)
-      if (touchDuration < 300 && !hasMoved && currentUserRole !== "viewer") {
-        // Handle tap selection using proper coordinate transformation
-        const element = findElementAtScreenPosition(touchStartPos.x, touchStartPos.y)
-
-        if (element && element.type === "boat") {
-          // Only handle boat selection via touch
-          const boat = element.element as any
-
-          // Check if harbor master can access this boat
-          if (currentUserRole === "admin" || canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
-            updateState({
-              selectedBoat: boat,
-              selectedPier: null,
-              selectedSlot: null,
-              selectedZone: null,
-            })
-            console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
-          } else {
-            // Show access denied message
-            const boatZone = findBoatZone(boat, state.zones)
-            alert(
-              `🔒 Geen toegang tot deze boot!\n\nBoot "${boat.name}" staat in zone "${boatZone?.name || "Onbekende zone"}" waar je geen toegang toe hebt.`,
-            )
-          }
-        } else {
-          // Tapped on empty space or non-boat element - deselect all
-          updateState({
-            selectedBoat: null,
-            selectedPier: null,
-            selectedSlot: null,
-            selectedZone: null,
-          })
-          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd (zoom: ${scale.toFixed(2)}x)`)
-        }
-      }
-
-      setIsPanning(false)
-      setIsZooming(false)
-      setInitialDistance(0)
-      setInitialScale(1)
-      setHasMoved(false)
-    } else if (e.touches.length === 1 && isZooming) {
-      // Went from 2 touches to 1 touch - switch back to panning
-      setIsZooming(false)
+      // Single touch for panning
+      e.preventDefault()
       setIsPanning(true)
       setStartPos({
         x: e.touches[0].clientX,
         y: e.touches[0].clientY,
       })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isPanning && e.touches.length === 1) {
+      e.preventDefault()
+      const deltaX = e.touches[0].clientX - startPos.x
+      const deltaY = e.touches[0].clientY - startPos.y
+      setTranslateX(translateX + deltaX)
+      setTranslateY(translateY + deltaY)
+      setStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isPanning) {
+      e.preventDefault()
+      setIsPanning(false)
     }
   }
 
