@@ -587,6 +587,7 @@ export function HarborCanvas({
       // Check if this was a tap (short duration, minimal movement, not during pan/zoom)
       if (touchDuration < 500 && !touchMoved && !isZooming && currentUserRole !== "viewer") {
         // Handle tap selection - only for boats
+        // More robust coordinate calculation that works at all zoom levels
         const rect = canvasRef.current?.getBoundingClientRect()
         if (!rect) {
           console.log("No canvas rect available")
@@ -596,19 +597,22 @@ export function HarborCanvas({
         const touchX = e.changedTouches[0].clientX
         const touchY = e.changedTouches[0].clientY
 
-        // More robust coordinate calculation
+        // Calculate world coordinates step by step for better accuracy
         const canvasX = touchX - rect.left
         const canvasY = touchY - rect.top
+
+        // Apply inverse transform to get world coordinates
         const worldX = (canvasX - translateX) / scale
         const worldY = (canvasY - translateY) / scale
 
-        console.log(`Touch coordinates:`)
+        console.log(`Touch coordinates at zoom ${scale.toFixed(2)}x:`)
         console.log(`  Screen: (${touchX}, ${touchY})`)
-        console.log(`  Canvas: (${canvasX}, ${canvasY})`)
-        console.log(`  World: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
+        console.log(`  Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}`)
+        console.log(`  Canvas relative: (${canvasX}, ${canvasY})`)
         console.log(
           `  Transform: translate(${translateX.toFixed(1)}, ${translateY.toFixed(1)}) scale(${scale.toFixed(2)})`,
         )
+        console.log(`  World: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
 
         // Check boats only (highest priority for touch)
         let foundBoat = false
