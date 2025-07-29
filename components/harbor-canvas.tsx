@@ -581,27 +581,47 @@ export function HarborCanvas({
         Math.abs(e.changedTouches[0].clientY - touchStartPos.y) > 15
 
       console.log(
-        `Touch ended - Duration: ${touchDuration}ms, Moved: ${touchMoved}, Panning: ${isPanning}, Zooming: ${isZooming}`,
+        `Touch ended - Duration: ${touchDuration}ms, Moved: ${touchMoved}, Panning: ${isPanning}, Zooming: ${isZooming}, Scale: ${scale.toFixed(2)}`,
       )
 
       // Check if this was a tap (short duration, minimal movement, not during pan/zoom)
       if (touchDuration < 500 && !touchMoved && !isZooming && currentUserRole !== "viewer") {
         // Handle tap selection - only for boats
         const rect = canvasRef.current?.getBoundingClientRect()
-        if (!rect) return
+        if (!rect) {
+          console.log("No canvas rect available")
+          return
+        }
 
         const touchX = e.changedTouches[0].clientX
         const touchY = e.changedTouches[0].clientY
-        const worldX = (touchX - rect.left - translateX) / scale
-        const worldY = (touchY - rect.top - translateY) / scale
 
-        console.log(`Touch tap detected at world coordinates: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
+        // More robust coordinate calculation
+        const canvasX = touchX - rect.left
+        const canvasY = touchY - rect.top
+        const worldX = (canvasX - translateX) / scale
+        const worldY = (canvasY - translateY) / scale
+
+        console.log(`Touch coordinates:`)
+        console.log(`  Screen: (${touchX}, ${touchY})`)
+        console.log(`  Canvas: (${canvasX}, ${canvasY})`)
+        console.log(`  World: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
+        console.log(
+          `  Transform: translate(${translateX.toFixed(1)}, ${translateY.toFixed(1)}) scale(${scale.toFixed(2)})`,
+        )
 
         // Check boats only (highest priority for touch)
         let foundBoat = false
         for (const boat of state.boats) {
-          if (worldX >= boat.x && worldX <= boat.x + boat.width && worldY >= boat.y && worldY <= boat.y + boat.height) {
-            console.log(`Found boat: ${boat.name} at (${boat.x}, ${boat.y}) size (${boat.width}x${boat.height})`)
+          const boatLeft = boat.x
+          const boatRight = boat.x + boat.width
+          const boatTop = boat.y
+          const boatBottom = boat.y + boat.height
+
+          console.log(`Checking boat "${boat.name}": bounds (${boatLeft}-${boatRight}, ${boatTop}-${boatBottom})`)
+
+          if (worldX >= boatLeft && worldX <= boatRight && worldY >= boatTop && worldY <= boatBottom) {
+            console.log(`✅ Hit detected on boat: ${boat.name}`)
 
             // Check if user can edit this boat
             if (canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
@@ -611,7 +631,7 @@ export function HarborCanvas({
                 selectedSlot: null,
                 selectedZone: null,
               })
-              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch`)
+              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
             } else {
               // Show access denied message
               const boatZone = findBoatZone(boat, state.zones)
@@ -633,7 +653,7 @@ export function HarborCanvas({
             selectedSlot: null,
             selectedZone: null,
           })
-          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd`)
+          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd (zoom: ${scale.toFixed(2)}x)`)
         }
       }
 
