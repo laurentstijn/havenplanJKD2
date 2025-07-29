@@ -50,6 +50,11 @@ export function HarborCanvas({
   const [initialScale, setInitialScale] = useState(1)
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
 
+  // Touch selection state
+  const [touchStartTime, setTouchStartTime] = useState(0)
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 })
+  const [hasMoved, setHasMoved] = useState(false)
+
   // Dragging state
   const [isDragging, setIsDragging] = useState(false)
   const [dragTarget, setDragTarget] = useState<{
@@ -74,6 +79,47 @@ export function HarborCanvas({
       x: (touch1.clientX + touch2.clientX) / 2,
       y: (touch1.clientY + touch2.clientY) / 2,
     }
+  }
+
+  // Helper function to find element at touch position
+  const findElementAtPosition = (x: number, y: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return null
+
+    const worldX = (x - rect.left - translateX) / scale
+    const worldY = (y - rect.top - translateY) / scale
+
+    // Check boats first (highest z-index)
+    for (const boat of state.boats) {
+      if (worldX >= boat.x && worldX <= boat.x + boat.width && worldY >= boat.y && worldY <= boat.y + boat.height) {
+        return { type: "boat", element: boat }
+      }
+    }
+
+    // Check slots
+    for (const slot of state.slots) {
+      if (worldX >= slot.x && worldX <= slot.x + slot.width && worldY >= slot.y && worldY <= slot.y + slot.height) {
+        return { type: "slot", element: slot }
+      }
+    }
+
+    // Check piers
+    for (const pier of state.piers) {
+      if (worldX >= pier.x && worldX <= pier.x + pier.width && worldY >= pier.y && worldY <= pier.y + pier.height) {
+        return { type: "pier", element: pier }
+      }
+    }
+
+    // Check zones
+    if (zonesVisible) {
+      for (const zone of state.zones) {
+        if (worldX >= zone.x && worldX <= zone.x + zone.width && worldY >= zone.y && worldY <= zone.y + zone.height) {
+          return { type: "zone", element: zone }
+        }
+      }
+    }
+
+    return null
   }
 
   // Replace the updateTransform useCallback with direct style updates
@@ -496,11 +542,16 @@ export function HarborCanvas({
     e.preventDefault()
 
     if (e.touches.length === 1) {
-      // Single touch for panning
+      // Single touch - could be tap or pan
+      const touch = e.touches[0]
+      setTouchStartTime(Date.now())
+      setTouchStartPos({ x: touch.clientX, y: touch.clientY })
+      setHasMoved(false)
+
       setIsPanning(true)
       setStartPos({
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
+        x: touch.clientX,
+        y: touch.clientY,
       })
     } else if (e.touches.length === 2) {
       // Two touches for zooming
@@ -524,11 +575,19 @@ export function HarborCanvas({
 
     if (e.touches.length === 1 && isPanning && !isZooming) {
       // Single touch panning
-      const deltaX = e.touches[0].clientX - startPos.x
-      const deltaY = e.touches[0].clientY - startPos.y
+      const touch = e.touches[0]
+      const deltaX = touch.clientX - startPos.x
+      const deltaY = touch.clientY - startPos.y
+
+      // Check if we've moved enough to consider this a pan gesture
+      const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+      if (moveDistance > 10) {
+        setHasMoved(true)
+      }
+
       setTranslateX(translateX + deltaX)
       setTranslateY(translateY + deltaY)
-      setStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+      setStartPos({ x: touch.clientX, y: touch.clientY })
     } else if (e.touches.length === 2 && isZooming) {
       // Two touch zooming
       const touch1 = e.touches[0]
@@ -564,10 +623,66 @@ export function HarborCanvas({
 
     if (e.touches.length === 0) {
       // All touches ended
+      const touchDuration = Date.now() - touchStartTime
+
+      // Check if this was a tap (short duration, no movement)
+      if (touchDuration < 300 && !hasMoved && currentUserRole !== "viewer") {
+        // Handle tap selection
+        const element = findElementAtPosition(touchStartPos.x, touchStartPos.y)
+
+        if (element) {
+          if (element.type === "boat") {
+            const boat = element.element as any
+
+            // Check if harbor master can access this boat
+            if (currentUserRole === "admin" || canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
+              updateState({
+                selectedBoat: boat,
+                selectedPier: null,
+                selectedSlot: null,
+                selectedZone: null,
+              })
+              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch`)
+            } else {
+              // Show access denied message
+              const boatZone = findBoatZone(boat, state.zones)
+              alert(
+                `🔒 Geen toegang tot deze boot!\n\nBoot "${boat.name}" staat in zone "${boatZone?.name || "Onbekende zone"}" waar je geen toegang toe hebt.`,
+              )
+            }
+          } else if (element.type === "pier" && currentUserRole === "admin") {
+            const pier = element.element as any
+            updateState({
+              selectedPier: pier,
+              selectedBoat: null,
+              selectedSlot: null,
+              selectedZone: null,
+            })
+          } else if (element.type === "slot" && currentUserRole === "admin") {
+            const slot = element.element as any
+            updateState({
+              selectedSlot: slot,
+              selectedBoat: null,
+              selectedPier: null,
+              selectedZone: null,
+            })
+          } else if (element.type === "zone" && currentUserRole === "admin") {
+            const zone = element.element as any
+            updateState({
+              selectedZone: zone,
+              selectedBoat: null,
+              selectedPier: null,
+              selectedSlot: null,
+            })
+          }
+        }
+      }
+
       setIsPanning(false)
       setIsZooming(false)
       setInitialDistance(0)
       setInitialScale(1)
+      setHasMoved(false)
     } else if (e.touches.length === 1 && isZooming) {
       // Went from 2 touches to 1 touch - switch back to panning
       setIsZooming(false)
