@@ -593,25 +593,27 @@ export function HarborCanvas({
           return
         }
 
-        // Get the exact touch position from the original touch start
-        const touchX = touchStartPos.x
-        const touchY = touchStartPos.y
+        // Use the END position of the touch, not the start position
+        const touchX = e.changedTouches[0].clientX
+        const touchY = e.changedTouches[0].clientY
 
         // Convert screen coordinates to canvas coordinates
         const canvasX = touchX - rect.left
         const canvasY = touchY - rect.top
 
         // Apply inverse transform to get world coordinates
-        // This is the key fix: we need to account for both translation and scale
+        // The key is to properly reverse the transform: translate first, then scale
         const worldX = (canvasX - translateX) / scale
         const worldY = (canvasY - translateY) / scale
 
-        console.log(`🎯 Touch Selection Debug:`)
-        console.log(`  Screen touch: (${touchX}, ${touchY})`)
-        console.log(`  Canvas rect: left=${rect.left}, top=${rect.top}`)
-        console.log(`  Canvas coords: (${canvasX}, ${canvasY})`)
-        console.log(`  Transform: translateX=${translateX}, translateY=${translateY}, scale=${scale}`)
-        console.log(`  World coords: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
+        console.log(`🎯 Touch Selection Debug (Fixed):`)
+        console.log(`  Touch end position: (${touchX}, ${touchY})`)
+        console.log(`  Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}`)
+        console.log(`  Canvas relative: (${canvasX}, ${canvasY})`)
+        console.log(
+          `  Current transform: translateX=${translateX.toFixed(1)}, translateY=${translateY.toFixed(1)}, scale=${scale.toFixed(3)}`,
+        )
+        console.log(`  World coordinates: (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`)
 
         // Check boats only (highest priority for touch)
         let foundBoat = false
@@ -622,11 +624,11 @@ export function HarborCanvas({
           const boatBottom = boat.y + boat.height
 
           console.log(
-            `  Checking boat "${boat.name}": (${boatLeft.toFixed(1)}, ${boatTop.toFixed(1)}) to (${boatRight.toFixed(1)}, ${boatBottom.toFixed(1)})`,
+            `  Testing boat "${boat.name}": bounds (${boatLeft.toFixed(1)}, ${boatTop.toFixed(1)}) to (${boatRight.toFixed(1)}, ${boatBottom.toFixed(1)})`,
           )
 
           if (worldX >= boatLeft && worldX <= boatRight && worldY >= boatTop && worldY <= boatBottom) {
-            console.log(`  ✅ Hit detected on boat: ${boat.name}`)
+            console.log(`  ✅ HIT! Boat "${boat.name}" selected`)
 
             // Check if user can edit this boat
             if (canEditBoat(user?.uid || "", boat, state.zones, currentUserRole)) {
