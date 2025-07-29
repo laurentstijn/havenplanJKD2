@@ -92,9 +92,9 @@ export function HarborView({
         </div>
       </div>
 
-      {/* Management Panel */}
+      {/* Management Panel - Now uses full available width */}
       {currentUserRole !== "viewer" && (
-        <div className="flex-none w-[420px] min-w-[400px] max-w-[500px]">
+        <div className="flex-1 min-w-[400px] max-w-[600px]">
           <ManagementPanel
             state={state}
             updateState={updateState}

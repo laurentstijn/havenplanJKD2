@@ -17,6 +17,7 @@ import { BoatPopup } from "./boat-popup"
 interface ManagementPanelProps {
   state: AppState
   updateState: (updates: Partial<AppState>) => void
+  drawingMode?: any
   currentUserRole: UserRole
   // Camera controls
   scale: number
@@ -381,7 +382,7 @@ export function ManagementPanel({
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+    <div className="flex-1 bg-white border-l border-gray-200 flex flex-col h-[90vh]">
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">Beheer Paneel</h2>
         <p className="text-sm text-gray-600">
@@ -434,8 +435,8 @@ export function ManagementPanel({
         )}
 
         {/* Boats Section */}
-        <div className="p-2">
-          <Card>
+        <div className="p-2 flex flex-col flex-1">
+          <Card className="flex flex-col flex-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center">🚤 Boten ({visibleBoats.length})</span>
@@ -455,41 +456,18 @@ export function ManagementPanel({
                 />
               </div>
             </CardHeader>
-            <CardContent className="p-2">
-              {currentUserRole === "admin" && (
-                <div className="mb-2 space-y-1">
-                  {/* <div className="flex space-x-1">
-                    <Input
-                      placeholder="Boot naam"
-                      value={newBoatName}
-                      onChange={(e) => setNewBoatName(e.target.value)}
-                      className="h-7 text-xs"
-                      onKeyPress={(e) => e.key === "Enter" && handleAddBoat()}
-                    />
-                    <input
-                      type="color"
-                      value={newBoatColor}
-                      onChange={(e) => setNewBoatColor(e.target.value)}
-                      className="w-7 h-7 rounded border"
-                    />
-                  </div>
-                  <Button onClick={handleAddBoat} size="sm" className="w-full h-7 text-xs">
-                    Boot Toevoegen
-                  </Button> */}
-                </div>
-              )}
-
-              <div className="space-y-1 max-h-80 overflow-y-auto">
+            <CardContent className="p-2 flex flex-col flex-1">
+              <div className="space-y-1 flex-1 overflow-y-auto">
                 {filteredBoats.map((boat) => {
                   const boatZone = findBoatZone(boat, state.zones)
                   const isSelected = state.selectedBoat?.id === boat.id
                   return (
                     <div
                       key={boat.id}
-                      id={`boat-item-${boat.id}`} // Add this ID
+                      id={`boat-item-${boat.id}`}
                       className={`p-2 border rounded text-xs cursor-pointer transition-all duration-200 ${
                         isSelected
-                          ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md" // Enhanced selected styling
+                          ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md"
                           : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                       onClick={() => handleSelectBoat(boat)}
@@ -508,7 +486,10 @@ export function ManagementPanel({
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleEditBoat(boat)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditBoat(boat)
+                            }}
                             className="h-6 w-6 p-0"
                           >
                             <Edit className="h-3 w-3" />
@@ -517,7 +498,10 @@ export function ManagementPanel({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDeleteBoat(boat.id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteBoat(boat.id)
+                              }}
                               className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-3 w-3" />
@@ -551,10 +535,10 @@ export function ManagementPanel({
                       return (
                         <div
                           key={pier.id}
-                          id={`pier-item-${pier.id}`} // Add this ID
+                          id={`pier-item-${pier.id}`}
                           className={`p-2 border rounded text-xs cursor-pointer transition-all duration-200 ${
                             isSelected
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md" // Enhanced selected styling
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md"
                               : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           }`}
                           onClick={() => {
@@ -572,7 +556,10 @@ export function ManagementPanel({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleEditPier(pier)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditPier(pier)
+                                }}
                                 className="h-6 w-6 p-0"
                               >
                                 <Edit className="h-3 w-3" />
@@ -580,7 +567,10 @@ export function ManagementPanel({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeletePier(pier.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeletePier(pier.id)
+                                }}
                                 className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -611,10 +601,10 @@ export function ManagementPanel({
                       return (
                         <div
                           key={slot.id}
-                          id={`slot-item-${slot.id}`} // Add this ID
+                          id={`slot-item-${slot.id}`}
                           className={`p-2 border rounded text-xs cursor-pointer transition-all duration-200 ${
                             isSelected
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md" // Enhanced selected styling
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md"
                               : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           }`}
                           onClick={() => {
@@ -637,7 +627,10 @@ export function ManagementPanel({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleEditSlot(slot)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditSlot(slot)
+                                }}
                                 className="h-6 w-6 p-0"
                               >
                                 <Edit className="h-3 w-3" />
@@ -645,7 +638,10 @@ export function ManagementPanel({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeleteSlot(slot.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteSlot(slot.id)
+                                }}
                                 className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -676,10 +672,10 @@ export function ManagementPanel({
                       return (
                         <div
                           key={zone.id}
-                          id={`zone-item-${zone.id}`} // Add this ID
+                          id={`zone-item-${zone.id}`}
                           className={`p-2 border rounded text-xs cursor-pointer transition-all duration-200 ${
                             isSelected
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md" // Enhanced selected styling
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md"
                               : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                           }`}
                           onClick={() => {
@@ -700,7 +696,10 @@ export function ManagementPanel({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleEditZone(zone)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditZone(zone)
+                                }}
                                 className="h-6 w-6 p-0"
                               >
                                 <Edit className="h-3 w-3" />
@@ -708,7 +707,10 @@ export function ManagementPanel({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeleteZone(zone.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteZone(zone.id)
+                                }}
                                 className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
                               >
                                 <Trash2 className="h-3 w-3" />
