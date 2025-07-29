@@ -81,14 +81,18 @@ export function HarborCanvas({
     }
   }
 
-  // Helper function to find element at touch position
-  const findElementAtPosition = (x: number, y: number) => {
+  // Helper function to convert screen coordinates to world coordinates
+  const screenToWorld = (screenX: number, screenY: number) => {
     const rect = canvasRef.current?.getBoundingClientRect()
-    if (!rect) return null
+    if (!rect) return { x: 0, y: 0 }
 
-    const worldX = (x - rect.left - translateX) / scale
-    const worldY = (y - rect.top - translateY) / scale
+    const worldX = (screenX - rect.left - translateX) / scale
+    const worldY = (screenY - rect.top - translateY) / scale
+    return { x: worldX, y: worldY }
+  }
 
+  // Helper function to find element at world position
+  const findElementAtWorldPosition = (worldX: number, worldY: number) => {
     // Check boats first (highest z-index)
     for (const boat of state.boats) {
       if (worldX >= boat.x && worldX <= boat.x + boat.width && worldY >= boat.y && worldY <= boat.y + boat.height) {
@@ -120,6 +124,12 @@ export function HarborCanvas({
     }
 
     return null
+  }
+
+  // Helper function to find element at screen position (for touch)
+  const findElementAtScreenPosition = (screenX: number, screenY: number) => {
+    const { x: worldX, y: worldY } = screenToWorld(screenX, screenY)
+    return findElementAtWorldPosition(worldX, worldY)
   }
 
   // Replace the updateTransform useCallback with direct style updates
@@ -627,8 +637,8 @@ export function HarborCanvas({
 
       // Check if this was a tap (short duration, no movement)
       if (touchDuration < 300 && !hasMoved && currentUserRole !== "viewer") {
-        // Handle tap selection
-        const element = findElementAtPosition(touchStartPos.x, touchStartPos.y)
+        // Handle tap selection using proper coordinate transformation
+        const element = findElementAtScreenPosition(touchStartPos.x, touchStartPos.y)
 
         if (element) {
           if (element.type === "boat") {
@@ -642,7 +652,7 @@ export function HarborCanvas({
                 selectedSlot: null,
                 selectedZone: null,
               })
-              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch`)
+              console.log(`🚤 Boot "${boat.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
             } else {
               // Show access denied message
               const boatZone = findBoatZone(boat, state.zones)
@@ -658,6 +668,7 @@ export function HarborCanvas({
               selectedSlot: null,
               selectedZone: null,
             })
+            console.log(`🏗️ Steiger "${pier.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
           } else if (element.type === "slot" && currentUserRole === "admin") {
             const slot = element.element as any
             updateState({
@@ -666,6 +677,7 @@ export function HarborCanvas({
               selectedPier: null,
               selectedZone: null,
             })
+            console.log(`⚓ Ligplaats "${slot.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
           } else if (element.type === "zone" && currentUserRole === "admin") {
             const zone = element.element as any
             updateState({
@@ -674,7 +686,17 @@ export function HarborCanvas({
               selectedPier: null,
               selectedSlot: null,
             })
+            console.log(`🏢 Zone "${zone.name}" geselecteerd via touch (zoom: ${scale.toFixed(2)}x)`)
           }
+        } else {
+          // Tapped on empty space - deselect all
+          updateState({
+            selectedBoat: null,
+            selectedPier: null,
+            selectedSlot: null,
+            selectedZone: null,
+          })
+          console.log(`📍 Lege ruimte getapt - alles gedeselecteerd (zoom: ${scale.toFixed(2)}x)`)
         }
       }
 

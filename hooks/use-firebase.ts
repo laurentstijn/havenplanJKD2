@@ -174,9 +174,61 @@ export function useFirebase() {
   const [needsFirebaseSetup, setNeedsFirebaseSetup] = useState(false)
   const [usingDemoData, setUsingDemoData] = useState(true)
 
+  // Debug Firebase connection status
   useEffect(() => {
+    console.log("🔍 Firebase Debug Info:", {
+      database: !!database,
+      isConnected,
+      hasApiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      hasProjectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      hasDatabaseUrl: !!process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+      environmentVariables: {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "✅ Set" : "❌ Missing",
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "✅ Set" : "❌ Missing",
+        databaseUrl: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ? "✅ Set" : "❌ Missing",
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "✅ Set" : "❌ Missing",
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? "✅ Set" : "❌ Missing",
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? "✅ Set" : "❌ Missing",
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? "✅ Set" : "❌ Missing",
+      },
+    })
+  }, [database, isConnected])
+
+  useEffect(() => {
+    // Check if Firebase environment variables are missing
+    const requiredEnvVars = [
+      "NEXT_PUBLIC_FIREBASE_API_KEY",
+      "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+      "NEXT_PUBLIC_FIREBASE_DATABASE_URL",
+      "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+      "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+      "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+      "NEXT_PUBLIC_FIREBASE_APP_ID",
+    ]
+
+    const missingVars = requiredEnvVars.filter((varName) => !process.env[varName])
+
+    if (missingVars.length > 0) {
+      console.error("❌ Missing Firebase environment variables:", missingVars)
+      console.log("💡 To fix this:")
+      console.log("1. Create a .env.local file in your project root")
+      console.log("2. Add the missing environment variables:")
+      missingVars.forEach((varName) => {
+        console.log(`   ${varName}=your_value_here`)
+      })
+      console.log("3. Restart your development server")
+
+      setNeedsFirebaseSetup(true)
+      setUsingDemoData(true)
+      setLoading(false)
+      return
+    }
+
     if (!database || !isConnected) {
       console.log("🔥 Firebase not ready, using demo data")
+      console.log("Reasons:")
+      console.log("- Database object:", !!database)
+      console.log("- Is connected:", isConnected)
       setLoading(false)
       setUsingDemoData(true)
       return
@@ -206,11 +258,20 @@ export function useFirebase() {
       if (hasConnected) return
 
       console.error("❌ Firebase connection failed:", error)
+      console.log("Error details:", {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+      })
+
       if (error.code === "PERMISSION_DENIED") {
+        console.log("🔒 Permission denied - Firebase Database Rules need to be updated")
+        console.log("💡 Go to Firebase Console > Realtime Database > Rules and update them")
         setNeedsFirebaseSetup(true)
         setUsingDemoData(true)
         setError("Firebase Database Rules moeten worden bijgewerkt")
       } else {
+        console.log("🔥 Other Firebase error - falling back to demo data")
         setError(`Firebase fout: ${error.message}`)
         setUsingDemoData(true)
       }
@@ -226,6 +287,7 @@ export function useFirebase() {
         zonesRef,
         (snapshot) => {
           const data = snapshot.val()
+          console.log("📊 Zones data received:", data)
           if (data) {
             const zonesArray = Array.isArray(data) ? data : Object.values(data)
             setState((prev) => ({
@@ -234,6 +296,7 @@ export function useFirebase() {
               nextZoneId: zonesArray.length > 0 ? Math.max(...zonesArray.map((z: any) => z.id || 0)) + 1 : 1,
             }))
           } else {
+            console.log("📊 No zones data found, using empty array")
             setState((prev) => ({
               ...prev,
               zones: [],
@@ -242,7 +305,7 @@ export function useFirebase() {
           }
         },
         (error) => {
-          console.error("Zones listener error:", error)
+          console.error("❌ Zones listener error:", error)
         },
       )
       cleanupFunctions.push(() => {
@@ -256,6 +319,7 @@ export function useFirebase() {
         piersRef,
         (snapshot) => {
           const data = snapshot.val()
+          console.log("🏗️ Piers data received:", data)
           if (data) {
             const piersArray = Array.isArray(data) ? data : Object.values(data)
             setState((prev) => ({
@@ -264,6 +328,7 @@ export function useFirebase() {
               nextPierId: piersArray.length > 0 ? Math.max(...piersArray.map((p: any) => p.id || 0)) + 1 : 1,
             }))
           } else {
+            console.log("🏗️ No piers data found, using empty array")
             setState((prev) => ({
               ...prev,
               piers: [],
@@ -272,7 +337,7 @@ export function useFirebase() {
           }
         },
         (error) => {
-          console.error("Piers listener error:", error)
+          console.error("❌ Piers listener error:", error)
         },
       )
       cleanupFunctions.push(() => {
@@ -286,6 +351,7 @@ export function useFirebase() {
         slotsRef,
         (snapshot) => {
           const data = snapshot.val()
+          console.log("⚓ Slots data received:", data)
           if (data) {
             const slotsArray = Array.isArray(data) ? data : Object.values(data)
             setState((prev) => ({
@@ -294,6 +360,7 @@ export function useFirebase() {
               nextSlotId: slotsArray.length > 0 ? Math.max(...slotsArray.map((s: any) => s.id || 0)) + 1 : 1,
             }))
           } else {
+            console.log("⚓ No slots data found, using empty array")
             setState((prev) => ({
               ...prev,
               slots: [],
@@ -302,7 +369,7 @@ export function useFirebase() {
           }
         },
         (error) => {
-          console.error("Slots listener error:", error)
+          console.error("❌ Slots listener error:", error)
         },
       )
       cleanupFunctions.push(() => {
@@ -316,6 +383,7 @@ export function useFirebase() {
         boatsRef,
         (snapshot) => {
           const data = snapshot.val()
+          console.log("🚤 Boats data received:", data)
           if (data) {
             const boatsArray = Array.isArray(data) ? data : Object.values(data)
             const migratedBoats = migrateBoatsFormat(boatsArray)
@@ -331,6 +399,7 @@ export function useFirebase() {
               }
             })
           } else {
+            console.log("🚤 No boats data found, using empty array")
             setState((prev) => ({
               ...prev,
               boats: [],
@@ -340,7 +409,7 @@ export function useFirebase() {
           setLoading(false)
         },
         (error) => {
-          console.error("Boats listener error:", error)
+          console.error("❌ Boats listener error:", error)
           setLoading(false)
         },
       )
@@ -355,6 +424,7 @@ export function useFirebase() {
     }
 
     // Start with a simple test
+    console.log("🧪 Testing Firebase connection...")
     const testUnsubscribe = onValue(testRef, handleConnectionSuccess, handleConnectionError)
 
     return () => {
@@ -400,6 +470,13 @@ export function useFirebase() {
         console.error("❌ Error saving to Firebase:", error)
         setError(`Fout bij opslaan: ${error.message}`)
       }
+    } else {
+      console.log("💾 Not saving to Firebase:", {
+        hasDatabase: !!database,
+        isConnected,
+        hasUser: !!user,
+        usingDemoData,
+      })
     }
   }
 
