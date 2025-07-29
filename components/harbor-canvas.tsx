@@ -55,6 +55,27 @@ export function HarborCanvas({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [originalSize, setOriginalSize] = useState({ width: 0, height: 0, x: 0, y: 0 })
 
+  // Touch zoom state
+  const [isZooming, setIsZooming] = useState(false)
+  const [initialDistance, setInitialDistance] = useState(0)
+  const [initialScale, setInitialScale] = useState(1)
+  const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
+
+  // Helper function to calculate distance between two touch points
+  const getTouchDistance = (touch1: React.Touch, touch2: React.Touch) => {
+    const dx = touch1.clientX - touch2.clientX
+    const dy = touch1.clientY - touch2.clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  // Helper function to get center point between two touches
+  const getTouchCenter = (touch1: React.Touch, touch2: React.Touch) => {
+    return {
+      x: (touch1.clientX + touch2.clientX) / 2,
+      y: (touch1.clientY + touch2.clientY) / 2,
+    }
+  }
+
   // Replace the updateTransform useCallback with direct style updates
   useEffect(() => {
     if (canvasRef.current) {
@@ -315,6 +336,10 @@ export function HarborCanvas({
     updateState,
     user,
     currentUserRole,
+    isZooming,
+    initialDistance,
+    initialScale,
+    zoomCenter,
   ])
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -472,32 +497,89 @@ export function HarborCanvas({
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault()
+
     if (e.touches.length === 1) {
       // Single touch for panning
-      e.preventDefault()
       setIsPanning(true)
       setStartPos({
         x: e.touches[0].clientX,
         y: e.touches[0].clientY,
       })
+    } else if (e.touches.length === 2) {
+      // Two touches for zooming
+      setIsPanning(false) // Stop panning if it was active
+      setIsZooming(true)
+
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+
+      const distance = getTouchDistance(touch1, touch2)
+      const center = getTouchCenter(touch1, touch2)
+
+      setInitialDistance(distance)
+      setInitialScale(scale)
+      setZoomCenter(center)
     }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isPanning && e.touches.length === 1) {
-      e.preventDefault()
+    e.preventDefault()
+
+    if (e.touches.length === 1 && isPanning && !isZooming) {
+      // Single touch panning
       const deltaX = e.touches[0].clientX - startPos.x
       const deltaY = e.touches[0].clientY - startPos.y
       setTranslateX(translateX + deltaX)
       setTranslateY(translateY + deltaY)
       setStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+    } else if (e.touches.length === 2 && isZooming) {
+      // Two touch zooming
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+
+      const currentDistance = getTouchDistance(touch1, touch2)
+      const currentCenter = getTouchCenter(touch1, touch2)
+
+      // Calculate scale factor
+      const scaleFactor = currentDistance / initialDistance
+      const newScale = Math.max(0.1, Math.min(5, initialScale * scaleFactor))
+
+      // Get canvas rect for coordinate conversion
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+
+      // Convert zoom center to world coordinates (before zoom)
+      const worldX = (zoomCenter.x - rect.left - translateX) / scale
+      const worldY = (zoomCenter.y - rect.top - translateY) / scale
+
+      // Calculate new translation to keep the zoom center point stable
+      const newTranslateX = zoomCenter.x - rect.left - worldX * newScale
+      const newTranslateY = zoomCenter.y - rect.top - worldY * newScale
+
+      setScale(newScale)
+      setTranslateX(newTranslateX)
+      setTranslateY(newTranslateY)
     }
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (isPanning) {
-      e.preventDefault()
+    e.preventDefault()
+
+    if (e.touches.length === 0) {
+      // All touches ended
       setIsPanning(false)
+      setIsZooming(false)
+      setInitialDistance(0)
+      setInitialScale(1)
+    } else if (e.touches.length === 1 && isZooming) {
+      // Went from 2 touches to 1 touch - switch back to panning
+      setIsZooming(false)
+      setIsPanning(true)
+      setStartPos({
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      })
     }
   }
 
