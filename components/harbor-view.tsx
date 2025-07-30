@@ -74,7 +74,10 @@ export function HarborView({
           onToggleZones={toggleZones}
         />
 
-        <div className="bg-sky-300 rounded-lg relative flex flex-col flex-grow h-full w-full overflow-hidden mt-4">
+        <div
+          className="bg-sky-300 rounded-lg relative flex flex-col flex-grow h-full w-full overflow-hidden mt-4"
+          style={{ borderRadius: "20px" }}
+        >
           <HarborCanvas
             state={state}
             updateState={updateState}

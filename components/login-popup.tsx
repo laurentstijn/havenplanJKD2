@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -12,188 +11,174 @@ interface LoginPopupProps {
 
 export function LoginPopup({ isOpen, onClose }: LoginPopupProps) {
   const { login, register } = useAuth()
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    displayName: "",
-  })
+  const [isLogin, setIsLogin] = useState(true)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [displayName, setDisplayName] = useState("")
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
     setError("")
-    setIsLoading(true)
 
     try {
-      let result
-      if (isRegistering) {
-        // Nieuwe gebruikers krijgen altijd de rol "viewer"
-        result = await register(formData.email, formData.password, formData.displayName, "viewer")
+      if (isLogin) {
+        const result = await login(email, password)
+        if (result.success) {
+          onClose()
+          resetForm()
+        } else {
+          setError(result.error || "Inloggen mislukt")
+        }
       } else {
-        result = await login(formData.email, formData.password)
+        const result = await register(email, password, displayName)
+        if (result.success) {
+          setRegistrationSuccess(true)
+          setError("")
+        } else {
+          setError(result.error || "Registratie mislukt")
+        }
       }
-
-      if (result.success) {
-        handleClose()
-      } else {
-        setError(result.error || "Er is een fout opgetreden")
-      }
-    } catch (error) {
-      setError("Er is een onverwachte fout opgetreden")
+    } catch (error: any) {
+      setError(error.message || "Er is een fout opgetreden")
     }
 
-    setIsLoading(false)
+    setLoading(false)
+  }
+
+  const resetForm = () => {
+    setEmail("")
+    setPassword("")
+    setDisplayName("")
+    setError("")
+    setIsLogin(true)
+    setRegistrationSuccess(false)
   }
 
   const handleClose = () => {
-    setFormData({ email: "", password: "", displayName: "" })
-    setError("")
-    setIsLoading(false)
-    setIsRegistering(false)
     onClose()
+    resetForm()
   }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-white rounded-lg p-6 w-96 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-blue-600">{isRegistering ? "📝 Registreren" : "🔐 Inloggen"}</h2>
+          <h2 className="text-2xl font-bold text-blue-600">
+            {registrationSuccess ? "✅ Registratie Succesvol" : isLogin ? "🔐 Inloggen" : "📝 Registreren"}
+          </h2>
           <button
             onClick={handleClose}
             className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
             aria-label="Sluiten"
-            disabled={isLoading}
           >
             ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Email:</label>
-            <input
-              type="email"
-              className="w-full p-3 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="voorbeeld@email.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={isLoading}
-              required
-            />
-          </div>
+        {error && <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded text-red-700 text-sm">{error}</div>}
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Wachtwoord:</label>
-            <input
-              type="password"
-              className="w-full p-3 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Minimaal 6 karakters"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={isLoading}
-              required
-              minLength={6}
-            />
+        {registrationSuccess ? (
+          <div className="text-center space-y-4">
+            <div className="text-6xl">✅</div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-green-800">Account Aangemaakt!</h3>
+              <p className="text-sm text-gray-600">
+                Je account voor <strong>{email}</strong> is succesvol aangemaakt.
+              </p>
+              <p className="text-sm text-gray-600">
+                Je account wacht nu op goedkeuring door een administrator. Je krijgt bericht wanneer je kunt inloggen.
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="w-full py-2 px-4 bg-blue-600 text-white border-none rounded cursor-pointer text-sm hover:bg-blue-700 transition-colors"
+            >
+              Sluiten
+            </button>
           </div>
-
-          {isRegistering && (
-            <>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Volledige Naam:</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
-                  type="text"
-                  className="w-full p-3 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Jan van Dijk"
-                  value={formData.displayName}
-                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  disabled={isLoading}
+                  type="email"
+                  className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-blue-600">👁️</span>
-                  <span className="text-sm font-bold text-blue-800">Standaard Rol: Viewer</span>
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Naam</label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    required
+                  />
                 </div>
-                <p className="text-xs text-blue-700">
-                  Nieuwe accounts krijgen automatisch de rol "Viewer" (alleen lezen). Een administrator kan je rol later
-                  upgraden naar Havenmeester of Admin.
-                </p>
-              </div>
-            </>
-          )}
-
-          {error && <div className="p-3 bg-red-100 border border-red-300 rounded text-red-700 text-sm">⚠️ {error}</div>}
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 py-3 px-4 bg-gray-500 text-white border-none rounded cursor-pointer text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
-              disabled={isLoading}
-            >
-              Annuleren
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-3 px-4 bg-blue-600 text-white border-none rounded cursor-pointer text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {isRegistering ? "Registreren..." : "Inloggen..."}
-                </>
-              ) : (
-                <>{isRegistering ? "📝 Registreren" : "🔑 Inloggen"}</>
               )}
-            </button>
-          </div>
-        </form>
 
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={() => setIsRegistering(!isRegistering)}
-            className="text-blue-600 hover:text-blue-800 text-sm underline"
-            disabled={isLoading}
-          >
-            {isRegistering ? "Al een account? Inloggen" : "Nog geen account? Registreren"}
-          </button>
-        </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Wachtwoord</label>
+                <input
+                  type="password"
+                  className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
 
-        {isRegistering && (
-          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <h4 className="text-sm font-bold text-gray-800 mb-2">📋 Rollen Uitleg:</h4>
-            <div className="space-y-1 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <span>👁️</span>
-                <span>
-                  <strong>Viewer:</strong> Kan alleen het havenplan bekijken
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>⚓</span>
-                <span>
-                  <strong>Havenmeester:</strong> Kan boten beheren en bewerken
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>👨‍💼</span>
-                <span>
-                  <strong>Admin:</strong> Volledige toegang tot alle functies
-                </span>
+              <button
+                type="submit"
+                className="w-full py-2 px-4 bg-blue-600 text-white border-none rounded cursor-pointer text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? "⏳ Bezig..." : isLogin ? "🔐 Inloggen" : "📝 Account Aanmaken"}
+              </button>
+            </form>
+
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => {
+                  setIsLogin(!isLogin)
+                  setError("")
+                }}
+                className="text-blue-600 hover:text-blue-800 text-sm underline"
+              >
+                {isLogin ? "Nog geen account? Registreer hier" : "Al een account? Log hier in"}
+              </button>
+            </div>
+
+            {/* Info Section */}
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-bold text-blue-800 mb-2">ℹ️ Hoe werkt het?</h3>
+              <div className="text-sm text-blue-700 space-y-2">
+                {isLogin ? (
+                  <>
+                    <p>Nog geen account? Klik op "Registreer hier" om een nieuw account aan te maken.</p>
+                    <p>Na registratie moet je account goedgekeurd worden door een administrator.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>Na registratie wordt je account ter goedkeuring voorgelegd aan een administrator.</p>
+                    <p>Je krijgt bericht wanneer je account is goedgekeurd en je kunt inloggen.</p>
+                  </>
+                )}
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-2 italic">
-              Neem contact op met een administrator om je rol te laten upgraden.
-            </p>
-          </div>
+          </>
         )}
       </div>
     </div>
